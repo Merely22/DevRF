@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>X5 LoRa</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    body {
+      background-color: #f0f8ff; 
+    }
+    .navbar {
+      background-color: #0d6efd; 
+    }
+    .form-control {
+      background-color: #ffffff;
+      border: 1px solid #0d6efd;
+    }
+    #mapArea {
+      height: 70vh;
+      border: 2px solid #0d6efd;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+
+<body class="p-2">
+  <!-- NAVBAR con botón de menú -->
+  <nav class="navbar navbar-dark">
+    <div class="container-fluid">
+      <!-- Botón para abrir el panel lateral -->
+      <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarInputs" aria-controls="sidebarInputs">
+        ⚙️
+      </button>
+      <span class="navbar-brand.justify-content-center mb-1 h2">X5 LORA COVERAGE SIMULATOR</span>
+    </div>
+  </nav>
+
+  <div class="input-group input-group-sm mb-3" style="display: none">
+    <span class="input-group-text">API Key</span>
+    <input
+      id="apiKey"
+      type="password"
+      class="form-control"
+      placeholder="Your API Key for service defined below."
+    />
+  </div>
+
+  <div class="input-group input-group-sm mb-3" style="display: none">
+    <span class="input-group-text">API Service Base URL</span>
+    <input
+      id="apiServiceBaseUrl"
+      type="text"
+      class="form-control"
+      value="https://api.cloudrf.com"
+      placeholder="The base URL of where your API requests will be made to."
+    />
+  </div>
+
+  <div class="pb-2" style="display: none">
+    <div class="form-check form-check-inline">
+      <input
+        class="form-check-input"
+        type="radio"
+        name="calculationEngine"
+        id="cpuEngine"
+        value="2"
+        checked
+      />
+      <label class="form-check-label" for="cpuEngine">CPU Engine</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input
+        class="form-check-input"
+        type="radio"
+        name="calculationEngine"
+        id="gpuEngine"
+        value="1"
+      />
+      <label class="form-check-label" for="gpuEngine"
+        >GPU Engine (Requires GPU plan)</label
+      >
+    </div>
+  </div>
+
+  <!-- SIDE BAR  -->
+  <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarInputs" aria-labelledby="sidebarInputsLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="sidebarInputsLabel">Insert Parameters</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="mb-3">
+        <label for="latitude" class="form-label">Latitude</label>
+        <input type="number"  placeholder="-12.104409" min="-90" max="90" class="form-control" id="latitude" required />
+      </div>
+      <div class="mb-3">
+        <label for="longitude" class="form-label">Longitude</label>
+        <input type="number" placeholder="-77.002420" min="-180" max="180" class="form-control" id="longitude" />
+      </div>
+      <div class="mb-3">
+        <label for="txh" class="form-label">Altitude Transmitter (m)</label>
+        <input type="number" placeholder="2" class="form-control" id="txh" />
+      </div>
+      <div class="mb-3">
+        <label for="rxh" class="form-label">Altitude Receiver (m)</label>
+        <input type="number" placeholder="1" class="form-control" id="rxh" />
+      </div>
+      <button type="button" class="btn btn-primary w-100" onclick="createAreaRequest(latitude.value, longitude.value, txh.value, rxh.value)">Simulate</button>
+      <div class="alert alert-danger d-none mt-3" style="font-size: 0.9rem; padding: 8px;" role="alert" id="dangerAlert"></div>
+    </div>
+  </div>
+
+  <br />
+
+  <div class="alert alert-danger d-none" role="alert" id="dangerAlert"></div>
+
+  <div class="row justify-content-evenly" style="height: 100%">
+    <!-- Columna de Mapa (ocupa todo ahora) -->
+    <div class="col-12">
+      <div id="mapArea" class="map" style="height: 800px"></div>
+    </div>
+  </div>
+
+  <div style="display: none">
+    <div class="d-flex justify-content-between">
+      <div class="w-50 mx-4">
+        <h2>Request</h2>
+        <pre id="requestRawOutput" class="p-3 bg-dark text-white font-monospace overflow-x-scroll">No data to show yet...</pre>
+      </div>
+      <div class="w-50 mx-4">
+        <h2>Response</h2>
+        <pre id="responseRawOutput" class="p-3 bg-dark text-white font-monospace overflow-x-scroll">No data to show yet...</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
+
+  <!-- Leaflet Scripts -->
+  <script src="https://code.jquery.com/jquery-3.6.3.min.js" integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+  <script src="app.js"></script>
+
+  <script>
+    var map = L.map("mapArea").setView([-12.073022, -77.193998], 10);
+
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+      attribution: "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
+    }).addTo(map);
+
+    function onMapClick(e) {
+      createAreaRequest(e.latlng.lat, e.latlng.lng, "leaflet");
+    }
+
+    //map.on("click", onMapClick);
+  </script>
+</body>
+</html>
